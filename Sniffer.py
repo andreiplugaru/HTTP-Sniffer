@@ -1,12 +1,21 @@
+import binascii
 import ctypes
 import os
 import socket
 import logging
+import struct
+import sys
+
+from IPHeader import IPHeader
+from TcpPacketHeader import TcpPacketHeader
 
 class Sniffer:
     MAX_BUFFER_SIZE = 65536
+    IP_HEADER_LENGTH = 20
+    TCP_HEADER_LENGTH = 20
 
-    def __init__(self):
+    def __init__(self, file_output=sys.stdout):
+        self.file_output = file_output
         if os.name == 'nt':
             try:
                 is_admin = ctypes.windll.shell32.IsUserAnAdmin() == 1
@@ -25,9 +34,65 @@ class Sniffer:
         # implement for linux
         else:
             pass
+        self.fragments = dict()
 
+    def tcp_parser(self, data, destination_address):
+        tcp_packet = TcpPacketHeader(data)
+        data_start_pos = self.TCP_HEADER_LENGTH
+        if tcp_packet.Source_port == 80 or tcp_packet.Destination_port == 80:
+            if (destination_address, tcp_packet.Destination_port) in self.fragments:
+                self.fragments[(destination_address, tcp_packet.Destination_port)] += data[data_start_pos:]
+                if has_connection_closed(
+                        self.fragments[(destination_address, tcp_packet.Destination_port)]):
+                    if tcp_packet.FIN == 1:
+                        print(
+                            f"fragment is {self.fragments[(destination_address, tcp_packet.Destination_port)]}")
+                        del self.fragments[(destination_address, tcp_packet.Destination_port)]
+                elif (get_content_length(
+                        self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
+                    self.fragments[(destination_address, tcp_packet.Destination_port)])
+                      or len(data[data_start_pos:]) == 0):
+                    print(
+                        f"fragment is {self.fragments[(destination_address, tcp_packet.Destination_port)]}")
+                    del self.fragments[(destination_address, tcp_packet.Destination_port)]
+            else:
+                if get_content_length(data[data_start_pos:]) != len(
+                        data[data_start_pos:]):
+                    self.fragments[(destination_address, tcp_packet.Destination_port)] = data[data_start_pos:]
+                if get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
+                        self.fragments[(destination_address, tcp_packet.Destination_port)]):
+                    print(f"fragment is {data[data_start_pos:]}")
     def sniff(self):
-        while True:
-            raw_data, address = self.conn.recvfrom(Sniffer.MAX_BUFFER_SIZE)
-            print(raw_data)
+        # key is tuple of (dest_ip, dest_port)
 
+        while True:
+            raw_data = self.conn.recv(Sniffer.MAX_BUFFER_SIZE)
+            ip_packet = IPHeader(raw_data[:self.IP_HEADER_LENGTH])
+            if ip_packet.Protocol == 6:
+                part_of = raw_data[self.IP_HEADER_LENGTH:]
+                self.tcp_parser(part_of, ip_packet.Destination_address)
+
+
+
+def get_content_length(data):
+    try:
+        data_s = data.decode("utf-8")
+    except:
+        return -1
+    data_s = data.decode("utf-8")
+    content_length = -1
+    for line in data_s.split("\r\n"):
+        if "Content-Length" in line:
+            content_length = int(line.split(":")[1])
+    return content_length
+
+
+def has_connection_closed(data):
+    try:
+        data_s = data.decode("utf-8")
+    except:
+        return False
+
+    if "clos" in data_s.lower():
+        return True
+    return False

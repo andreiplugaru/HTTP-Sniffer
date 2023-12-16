@@ -1,11 +1,10 @@
-import binascii
 import ctypes
 import os
 import socket
 import logging
-import struct
 import sys
 
+from HttpMessage import HttpRequestMessage
 from IPHeader import IPHeader
 from TcpPacketHeader import TcpPacketHeader
 
@@ -34,6 +33,8 @@ class Sniffer:
         # implement for linux
         else:
             pass
+        # key is tuple of (dest_ip, dest_port)
+
         self.fragments = dict()
 
     def tcp_parser(self, data, destination_address):
@@ -45,15 +46,14 @@ class Sniffer:
                 if has_connection_closed(
                         self.fragments[(destination_address, tcp_packet.Destination_port)]):
                     if tcp_packet.FIN == 1:
-                        print(
-                            f"fragment is {self.fragments[(destination_address, tcp_packet.Destination_port)]}")
+                        self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port)])
                         del self.fragments[(destination_address, tcp_packet.Destination_port)]
                 elif (get_content_length(
                         self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
                     self.fragments[(destination_address, tcp_packet.Destination_port)])
                       or len(data[data_start_pos:]) == 0):
-                    print(
-                        f"fragment is {self.fragments[(destination_address, tcp_packet.Destination_port)]}")
+                    self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port)])
+
                     del self.fragments[(destination_address, tcp_packet.Destination_port)]
             else:
                 if get_content_length(data[data_start_pos:]) != len(
@@ -61,20 +61,18 @@ class Sniffer:
                     self.fragments[(destination_address, tcp_packet.Destination_port)] = data[data_start_pos:]
                 if get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
                         self.fragments[(destination_address, tcp_packet.Destination_port)]):
-                    print(f"fragment is {data[data_start_pos:]}")
+                    self.http_parser(data[data_start_pos:])
 
     def http_parser(self, http_data_bytes):
         try:
             http_data_string = http_data_bytes.decode("utf-8")
-            for line in http_data_string.split("\r\n"):
-                if "Content-Length" in line:
-                    content_length = int(line.split(":")[1])
-                    break
+            http_request = HttpRequestMessage(http_data_string)
+            http_request.parse()
+            print(http_request)
         except:
-            return -1
-    def sniff(self):
-        # key is tuple of (dest_ip, dest_port)
+           logging.warning("Could not decode HTTP")
 
+    def sniff(self):
         while True:
             raw_data = self.conn.recv(Sniffer.MAX_BUFFER_SIZE)
             ip_packet = IPHeader(raw_data[:self.IP_HEADER_LENGTH])

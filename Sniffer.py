@@ -62,6 +62,16 @@ class Sniffer:
                 if get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
                         self.fragments[(destination_address, tcp_packet.Destination_port)]):
                     print(f"fragment is {data[data_start_pos:]}")
+
+    def http_parser(self, http_data_bytes):
+        try:
+            http_data_string = http_data_bytes.decode("utf-8")
+            for line in http_data_string.split("\r\n"):
+                if "Content-Length" in line:
+                    content_length = int(line.split(":")[1])
+                    break
+        except:
+            return -1
     def sniff(self):
         # key is tuple of (dest_ip, dest_port)
 

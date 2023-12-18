@@ -8,6 +8,7 @@ from HttpMessage import HttpRequestMessage
 from IPHeader import IPHeader
 from TcpPacketHeader import TcpPacketHeader
 
+
 class Sniffer:
     MAX_BUFFER_SIZE = 65536
     IP_HEADER_LENGTH = 20
@@ -70,16 +71,15 @@ class Sniffer:
             http_request.parse()
             print(http_request)
         except:
-           logging.warning("Could not decode HTTP")
+            logging.warning("Could not decode HTTP")
 
-    def sniff(self):
+    def sniff(self, filters=None):
         while True:
             raw_data = self.conn.recv(Sniffer.MAX_BUFFER_SIZE)
             ip_packet = IPHeader(raw_data[:self.IP_HEADER_LENGTH])
             if ip_packet.Protocol == 6:
                 part_of = raw_data[self.IP_HEADER_LENGTH:]
                 self.tcp_parser(part_of, ip_packet.Destination_address)
-
 
 
 def get_content_length(data):

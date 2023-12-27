@@ -10,13 +10,13 @@ def clear_console():
         os.system('clear')
 
 
-headers = ["Method", "Request target", "Http version", "Content type", "Content length", "Body"]
+headers = ["Method", "Host", "Request target", "Http version", "Content type", "Content length", "Body"]
 data = []
 
 
 def display_table(data, headers):
     clear_console()
-    table = tabulate(data, headers=headers, tablefmt="grid", maxcolwidths=[20, 100, None, None, None, None])
+    table = tabulate(data, headers=headers, tablefmt="grid", maxcolwidths=[20,40, 50, 10, None, None, 20])
     print(table)
 
 

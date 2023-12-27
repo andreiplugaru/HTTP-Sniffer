@@ -19,8 +19,11 @@ class HttpRequestMessage:
             if "Content-Length" in line:
                 content_length_index = i
                 break
+        self.body = self.get_body()
 
-        self.body = lines[content_length_index + 1:]
+    def get_body(self):
+        lines = self.raw_message.split("\r\n\r\n")
+        return lines[1]
 
     def get_content_type(self):
         lines = self.raw_message.split("\r\n")
@@ -38,3 +41,6 @@ class HttpRequestMessage:
 
     def __str__(self):
         return f"method: {self.method}, request_target: {self.request_target}, http_version: {self.http_version}, content_type: {self.content_type}, content_length: {self.content_length}, body: {self.body}"
+
+    def get_as_list(self):
+        return [self.method, self.request_target, self.http_version, self.content_type, self.content_length, self.body]

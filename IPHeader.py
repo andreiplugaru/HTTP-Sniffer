@@ -1,21 +1,22 @@
 import ctypes
 
 
-class IPHeader(ctypes.BigEndianStructure):
+class IPHeader(ctypes.Structure):
+    _pack_ = 1
 
     _fields_ = [
-        ("Version", ctypes.c_int, 4),
-        ("Header_length", ctypes.c_int, 4),
-        ("Type_of_service", ctypes.c_int, 8),
-        ("Total_length", ctypes.c_int, 16),
-        ("Identification", ctypes.c_int, 16),
-        ("Flags", ctypes.c_int, 3),
-        ("Fragment_offset", ctypes.c_int, 13),
-        ("Time_to_live", ctypes.c_int, 8),
-        ("Protocol", ctypes.c_int, 8),
-        ("Header_checksum", ctypes.c_int, 16),
-        ("Source_address", ctypes.c_int, 32),
-        ("Destination_address", ctypes.c_int, 32)
+        ("Version", ctypes.c_uint8, 4),
+        ("Header_length", ctypes.c_uint8, 4),
+        ("Type_of_service", ctypes.c_uint8),
+        ("Total_length", ctypes.c_uint16),
+        ("Identification", ctypes.c_uint16),
+        # ("Flags", ctypes.c_int, 3),
+        ("Fragment_offset", ctypes.c_uint16),
+        ("Time_to_live", ctypes.c_uint8),
+        ("Protocol", ctypes.c_uint8),
+        ("Header_checksum", ctypes.c_uint16),
+        ("Source_address", ctypes.c_uint32),
+        ("Destination_address", ctypes.c_uint32)
     ]
 
 

@@ -6,6 +6,7 @@ import sys
 
 from HttpMessage import HttpRequestMessage
 from IPHeader import IPHeader
+from Printer import show
 from TcpPacketHeader import TcpPacketHeader
 
 
@@ -44,37 +45,55 @@ class Sniffer:
         if tcp_packet.Source_port == 80 or tcp_packet.Destination_port == 80:
             if (destination_address, tcp_packet.Destination_port) in self.fragments:
                 self.fragments[(destination_address, tcp_packet.Destination_port)] += data[data_start_pos:]
-                if has_connection_closed(
-                        self.fragments[(destination_address, tcp_packet.Destination_port)]):
-                    if tcp_packet.FIN == 1:
-                        self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port)])
-                        del self.fragments[(destination_address, tcp_packet.Destination_port)]
-                elif (get_content_length(
-                        self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
-                    self.fragments[(destination_address, tcp_packet.Destination_port)])
-                      or len(data[data_start_pos:]) == 0):
-                    self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port)])
-
-                    del self.fragments[(destination_address, tcp_packet.Destination_port)]
-            else:
-                if get_content_length(data[data_start_pos:]) != len(
-                        data[data_start_pos:]):
-                    self.fragments[(destination_address, tcp_packet.Destination_port)] = data[data_start_pos:]
-                if get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
-                        self.fragments[(destination_address, tcp_packet.Destination_port)]):
-                    self.http_parser(data[data_start_pos:])
+            #     if has_connection_closed(
+            #             self.fragments[(destination_address, tcp_packet.Destination_port)]):
+            #         if tcp_packet.FIN == 1:
+            #             self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port)])
+            #             del self.fragments[(destination_address, tcp_packet.Destination_port)]
+            #     elif (get_content_length(
+            #             self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
+            #         self.fragments[(destination_address, tcp_packet.Destination_port)])
+            #           or len(data[data_start_pos:]) == 0):
+            #         print(f"Content-Length: {get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port)])}")
+            #         if self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port)]):
+            #             print("HTTP packet: ", self.fragments[(destination_address, tcp_packet.Destination_port)], file=self.file_output)
+            #
+            #         del self.fragments[(destination_address, tcp_packet.Destination_port)]
+            # else:
+            #     if get_content_length(data[data_start_pos:]) != len(
+            #             data[data_start_pos:]):
+            #         self.fragments[(destination_address, tcp_packet.Destination_port)] = data[data_start_pos:]
+            #     if get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port)]) == len(
+            #             self.fragments[(destination_address, tcp_packet.Destination_port)]):
+            #         self.http_parser(data[data_start_pos:])
+            #         del self.fragments[(destination_address, tcp_packet.Destination_port)]
+            self.http_parser(data[data_start_pos:])
 
     def http_parser(self, http_data_bytes):
         try:
             http_data_string = http_data_bytes.decode("utf-8")
+            if "GET" not in http_data_string and  "POST" not in http_data_string:
+                return
             http_request = HttpRequestMessage(http_data_string)
             http_request.parse()
-            print(http_request)
+            if "/2023/images/style/spacer.gif" in http_request.__str__() or "2023/css/main.css" in http_request.__str__():
+                return True
+            show(http_request.get_as_list())
+            print(http_request, file=self.file_output)
         except:
             logging.warning("Could not decode HTTP")
 
-    def sniff(self, filters=None):
-        while True:
+    def sniff(self, filters=None, event_stop=None, event_pause = None):
+        """
+
+        :param filters:
+        :param event:
+        :return:
+        """
+        while event_stop is None or not event_stop.is_set():
+            if event_pause is not None and event_pause.is_set():
+                continue
+
             raw_data = self.conn.recv(Sniffer.MAX_BUFFER_SIZE)
             ip_packet = IPHeader(raw_data[:self.IP_HEADER_LENGTH])
             if ip_packet.Protocol == 6:
@@ -92,6 +111,7 @@ def get_content_length(data):
     for line in data_s.split("\r\n"):
         if "Content-Length" in line:
             content_length = int(line.split(":")[1])
+            print("Content-Length: ", content_length)
     return content_length
 
 

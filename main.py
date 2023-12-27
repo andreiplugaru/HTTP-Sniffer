@@ -13,14 +13,15 @@ from exceptions.InvalidCommandType import InvalidCommandType
 
 # sniffer = Sniffer()
 # sniffer.sniff()
+logging.basicConfig(filename='output.log', encoding='utf-8', level=logging.WARNING)
 
 filters = list()
 shared_resources = SharedResources()
 available_commands = {
     "help": HelpCommand(),
-    "add_filter": AddFilterCommand(filters),
+    "add_filter": AddFilterCommand(shared_resources),
     # "remove filter": gui.remove_filter,
-    "list_filters": ListFiltersCommand(filters),
+    "list_filters": ListFiltersCommand(shared_resources),
     "start_sniffing": StartSniffingCommand(shared_resources),
     "stop_sniffing": StopSniffingCommand(shared_resources),
     "pause_sniffing": PauseSniffingCommand(shared_resources),

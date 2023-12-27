@@ -15,8 +15,7 @@ class Sniffer:
     IP_HEADER_LENGTH = 20
     TCP_HEADER_LENGTH = 20
 
-    def __init__(self, file_output=sys.stdout):
-        self.file_output = file_output
+    def __init__(self):
         if os.name == 'nt':
             try:
                 is_admin = ctypes.windll.shell32.IsUserAnAdmin() == 1
@@ -69,29 +68,39 @@ class Sniffer:
             #         del self.fragments[(destination_address, tcp_packet.Destination_port)]
             self.http_parser(data[data_start_pos:])
 
+    def check_filters(self, data):
+        for filter in self.filters:
+            if not filter.apply(data):
+                return False
+        return True
+    def check_if_is_request(self, data):
+        first_word = data.split(" ")[0]
+        if first_word in ["GET", "POST", "PUT", "DELETE"]:
+            return True
+        return False
     def http_parser(self, http_data_bytes):
         try:
             http_data_string = http_data_bytes.decode("utf-8")
-            if "GET" not in http_data_string and  "POST" not in http_data_string:
+            if not self.check_if_is_request(http_data_string):
                 return
             http_request = HttpRequestMessage(http_data_string)
             http_request.parse()
-            if "/2023/images/style/spacer.gif" in http_request.__str__() or "2023/css/main.css" in http_request.__str__():
-                return True
+            if not self.check_filters(http_request):
+                return
             show(http_request.get_as_list())
-            print(http_request, file=self.file_output)
         except:
-            logging.warning("Could not decode HTTP")
+            logging.warning(f"Could not decode HTTP packet: {http_data_bytes}")
 
-    def sniff(self, filters=None, event_stop=None, event_pause = None):
+    def sniff(self, shared_resources):
         """
 
         :param filters:
         :param event:
         :return:
         """
-        while event_stop is None or not event_stop.is_set():
-            if event_pause is not None and event_pause.is_set():
+        while shared_resources.stop_event is None or not shared_resources.stop_event.is_set():
+            self.filters = shared_resources.filters
+            if shared_resources.pause_event is not None and shared_resources.pause_event.is_set():
                 continue
 
             raw_data = self.conn.recv(Sniffer.MAX_BUFFER_SIZE)

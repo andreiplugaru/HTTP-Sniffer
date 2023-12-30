@@ -6,7 +6,7 @@ class HttpMethodFilter(Filter):
     def __init__(self, http_method):
         super().__init__()
         if http_method.upper() not in HttpMethodFilter.valid_http_methods:
-            raise InvalidCommandArgs("request_method", HttpMethodFilter.valid_http_methods)
+            raise InvalidCommandArgs("request_method", str(HttpMethodFilter.valid_http_methods)[1:-1])
         self.http_method = http_method
 
     def apply(self, request):

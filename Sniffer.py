@@ -38,61 +38,50 @@ class Sniffer:
 
         self.fragments = dict()
 
-    def tcp_parser(self, data, source_address, destination_address):
+    def replace_fragment(self, destination_port, destination_address, current_sequence_number):
+        self.fragments[(destination_address, destination_port, self.next_sequence_number)] = self.fragments[
+            (destination_address, destination_port, current_sequence_number)]
+        del self.fragments[(destination_address, destination_port, current_sequence_number)]
+
+    def handle_existing_request(self, destination_address, tcp_packet, data, data_start_pos):
+        self.fragments[(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)] += data[
+                                                                                                          data_start_pos:]
+        self.replace_fragment(tcp_packet.Destination_port, destination_address, tcp_packet.Sequence_number)
+        if has_connection_closed(
+                self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]):
+            if tcp_packet.FIN == 1:
+                self.http_parser(
+                    self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
+                del self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]
+        elif (get_content_length(
+                self.fragments[(destination_address, tcp_packet.Destination_port,
+                                self.next_sequence_number)]) <= self.get_http_body_len(
+            self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
+        ):
+            self.http_parser(
+                self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
+            del self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]
+
+    def handle_new_request(self, destination_address, tcp_packet, data, data_start_pos):
+        self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)] = data[
+                                                                                                        data_start_pos:]
+        if get_content_length(self.fragments[(
+        destination_address, tcp_packet.Destination_port, self.next_sequence_number)]) <= self.get_http_body_len(
+                self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]):
+            self.http_parser(data[data_start_pos:])
+            del self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]
+
+    def tcp_parser(self, data, destination_address):
         tcp_packet = TcpPacketHeader(data)
         data_start_pos = self.TCP_HEADER_LENGTH
-        if tcp_packet.Source_port == 80 or tcp_packet.Destination_port == 80:
-            # bufid = f"{str(source_address)}{str(destination_address)}{str(tcp_packet.Source_port)}{str(tcp_packet.Destination_port)}"
-            # logging.warning("bufid: " + bufid)
-            # print("current packet: ", data.decode("ISO-8859-1"))
-            # print(f"binary data: {format(tcp_packet.Reserved_and_Control_bits, '08b')}")
-            # print("FIN: ", tcp_packet.get_FIN())
-            # if tcp_packet.get_SYN() == 1:
-            #     self.fragments[bufid] += data[data_start_pos:]
-            #     logging.warning("packet after update1: " + self.fragments[bufid].decode("ISO-8859-1"))
-            #     # del self.fragments[bufid]
-            #     return
-            # if bufid not in self.fragments.keys():
-            #     self.fragments[bufid] = data[data_start_pos:]
-            # if tcp_packet.get_FIN() == 1 or tcp_packet.get_RST() == 1:
-            #     self.fragments[bufid] += data[data_start_pos:]
-            #     logging.warning("packet after update2: " + self.fragments[bufid].decode("ISO-8859-1"))
-            #     del self.fragments[bufid]
-            #
-            #     return
-            logging.warning("HTTP packet: " + data.decode("ISO-8859-1"))
-            next_sequence_number = tcp_packet.Sequence_number + len(data[data_start_pos:])
-            if (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number) in self.fragments:
-                self.fragments[(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)] += data[data_start_pos:]
-                self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)] = self.fragments[(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)]
-                del self.fragments[(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)]
-                if has_connection_closed(
-                        self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)]):
-                    if tcp_packet.FIN == 1:
-                        self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)])
-                        # self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)] =  self.fragments[(destination_address, tcp_packet.Destination_port,tcp_packet.Sequence_number)]
-                        del self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)]
-                elif (get_content_length(
-                        self.fragments[(destination_address, tcp_packet.Destination_port,next_sequence_number)]) <= self.get_http_body_len(
-                    self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)])
-                     ):
-                    # print(f"Content-Length: {get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port)])}")
-                    logging.warning("Content-length: " + str(get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)])))
-                    # if self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port)]):
-                        # print("HTTP packet: ", self.fragments[(destination_address, tcp_packet.Destination_port)], file=self.file_output)
-                    self.http_parser(self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)])
-                    # self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)] = \
-                    # self.fragments[(destination_address, tcp_packet.Destination_port)]
+        if tcp_packet.Source_port != 80 and tcp_packet.Destination_port != 80:
+            return
 
-                    del self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)]
-            else:
-                # if get_content_length(data[data_start_pos:]) != self.get_http_body_len(data):
-                self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)] = data[data_start_pos:]
-                if get_content_length(self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)]) <= self.get_http_body_len(
-                        self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)]):
-                    self.http_parser(data[data_start_pos:])
-                    del self.fragments[(destination_address, tcp_packet.Destination_port, next_sequence_number)]
-            # self.http_parser(data[data_start_pos:])
+        self.next_sequence_number = tcp_packet.Sequence_number + len(data[data_start_pos:])
+        if (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number) in self.fragments:
+            self.handle_existing_request(destination_address, tcp_packet, data, data_start_pos)
+        else:
+           self.handle_new_request(destination_address, tcp_packet, data, data_start_pos)
 
     def apply_filters(self, data):
         grouped_filters = dict()
@@ -120,16 +109,19 @@ class Sniffer:
         if len(lines) < 2:
             return -1
         return len(lines[1])
+
     def check_if_is_request(self, data):
         first_word = data.split(" ")[0]
         if first_word in ["GET", "POST", "PUT", "DELETE"]:
             return True
         return False
+
     def http_parser(self, http_data_bytes):
         try:
             http_data_string = http_data_bytes.decode("ISO-8859-1")
             if not self.check_if_is_request(http_data_string):
                 return
+            self.shared_resources.http_request_messages.append(http_data_string)
             http_request = HttpRequestMessage(http_data_string)
             http_request.parse()
             if not self.apply_filters(http_request):
@@ -146,16 +138,17 @@ class Sniffer:
         :param event:
         :return:
         """
-        while shared_resources.stop_event is None or not shared_resources.stop_event.is_set():
+        self.shared_resources = shared_resources
+        while self.shared_resources.stop_event is None or not self.shared_resources.stop_event.is_set():
             self.filters = shared_resources.filters
-            if shared_resources.pause_event is not None and shared_resources.pause_event.is_set():
+            if self.shared_resources.pause_event is not None and self.shared_resources.pause_event.is_set():
                 continue
 
             raw_data = self.conn.recv(Sniffer.MAX_BUFFER_SIZE)
             ip_packet = IPHeader(raw_data[:self.IP_HEADER_LENGTH])
             if ip_packet.Protocol == 6:
                 part_of = raw_data[self.IP_HEADER_LENGTH:]
-                self.tcp_parser(part_of, ip_packet.Source_address, ip_packet.Destination_address)
+                self.tcp_parser(part_of, ip_packet.Destination_address)
 
 
 def get_content_length(data):
@@ -168,7 +161,6 @@ def get_content_length(data):
     for line in data_s.split("\r\n"):
         if "Content-Length" in line:
             content_length = int(line.split(":")[1])
-            print("Content-Length: ", content_length)
     return content_length
 
 

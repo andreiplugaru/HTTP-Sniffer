@@ -7,6 +7,7 @@ class SharedResources:
         self.filters = list()
         self.stop_event = Event()
         self.pause_event = Event()
+        self.http_request_messages = list()
 
     def set_thread(self, sniffer_thread):
         self.sniffer_thread = sniffer_thread

@@ -16,7 +16,7 @@ data = []
 
 def display_table(data, headers):
     clear_console()
-    table = tabulate(data, headers=headers, tablefmt="grid", maxcolwidths=[20,40, 50, 10, None, None, 20])
+    table = tabulate(data, headers=headers, tablefmt="grid", maxcolwidths=[10,20,40, 50, 10, None, None, 20], showindex=True)
     print(table)
 
 

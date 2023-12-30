@@ -10,6 +10,7 @@ from commands.HelpCommand import HelpCommand
 from commands.ListFiltersCommand import ListFiltersCommand
 from commands.PauseSniffingCommand import PauseSniffingCommand
 from commands.ResumeSniffingCommand import ResumeSniffingCommand
+from commands.ShowDetailsCommand import ShowDetailsCommand
 from commands.StartSniffingCommand import StartSniffingCommand
 from commands.StopSniffingCommand import StopSniffingCommand
 from exceptions.InvalidCommandArgs import InvalidCommandArgs
@@ -30,10 +31,11 @@ available_commands = {
     "stop_sniffing": StopSniffingCommand(shared_resources),
     "pause_sniffing": PauseSniffingCommand(shared_resources),
     "resume_sniffing": ResumeSniffingCommand(shared_resources),
+    "show_details": ShowDetailsCommand(shared_resources),
     # "describe http packet": gui.describe_http_packet
 }
 def call_command(command, args):
-    if command in ["add_filter", "remove_filter"]:
+    if command in ["add_filter", "remove_filter", "show_details"]:
         available_commands[command].execute(args)
     else:
         available_commands[command].execute()

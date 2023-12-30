@@ -1,6 +1,10 @@
 import logging
+from ctypes import sizeof
+
 #
 from SharedResources import SharedResources
+from TcpPacketHeader import TcpPacketHeader
+
 from commands.AddFilterCommand import AddFilterCommand
 from commands.HelpCommand import HelpCommand
 from commands.ListFiltersCommand import ListFiltersCommand
@@ -21,7 +25,7 @@ available_commands = {
     "help": HelpCommand(),
     "add_filter": AddFilterCommand(shared_resources),
     # "remove filter": gui.remove_filter,
-    "list_filters": ListFiltersCommand(shared_resources),
+    "list_filters": ListFiltersCommand(shared_resources.filters),
     "start_sniffing": StartSniffingCommand(shared_resources),
     "stop_sniffing": StopSniffingCommand(shared_resources),
     "pause_sniffing": PauseSniffingCommand(shared_resources),
@@ -38,6 +42,7 @@ while True:
     command = input("Enter command: ")
     if command == "":
         available_commands["pause_sniffing"].execute()
+        continue
     command_parts = command.split(" ")
     command_name = command_parts[0]
     args = command_parts[1:]
@@ -51,6 +56,8 @@ while True:
             exit(1)
     else:
         print("Command name is not recognized. Try help for more information.")
+
+# print(sizeof(TcpPacketHeader))
 # from ctypes import sizeof
 #
 # from IPHeader import IPHeader

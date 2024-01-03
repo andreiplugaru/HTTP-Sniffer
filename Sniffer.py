@@ -49,7 +49,7 @@ class Sniffer:
         self.replace_fragment(tcp_packet.Destination_port, destination_address, tcp_packet.Sequence_number)
         if has_connection_closed(
                 self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]):
-            if tcp_packet.FIN == 1:
+            if tcp_packet.get_FIN() == True:
                 self.http_parser(
                     self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
                 del self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]

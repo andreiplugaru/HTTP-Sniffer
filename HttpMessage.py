@@ -7,6 +7,8 @@ class HttpRequestMessage:
         self.content_type = None
         self.content_length = None
         self.body = None
+        self.host = None
+
     def parse(self):
         lines = self.raw_message.split("\r\n")
         self.method = lines[0].split(" ")[0]
@@ -15,16 +17,10 @@ class HttpRequestMessage:
         self.host = self.get_host()
         self.content_type = self.get_content_type()
         self.content_length = self.get_content_length()
-        content_length_index = 0
-        for i, line in enumerate(lines):
-            if "Content-Length" in line:
-                content_length_index = i
-                break
         self.body = self.get_body()
 
     def get_body(self):
-        lines = self.raw_message.split("\r\n\r\n")
-        return lines[1]
+        return self.raw_message[self.raw_message.find("\r\n\r\n") + 1:]
 
     def get_host(self):
         lines = self.raw_message.split("\r\n")

@@ -38,7 +38,9 @@ class Sniffer:
 
         self.fragments = dict()
 
-    def replace_fragment(self, destination_port, destination_address, current_sequence_number):
+    def replace_fragment(self, destination_address, destination_port,  current_sequence_number):
+        if current_sequence_number == self.next_sequence_number:
+            return
         self.fragments[(destination_address, destination_port, self.next_sequence_number)] = self.fragments[
             (destination_address, destination_port, current_sequence_number)]
         del self.fragments[(destination_address, destination_port, current_sequence_number)]
@@ -46,9 +48,11 @@ class Sniffer:
     def handle_existing_request(self, destination_address, tcp_packet, data, data_start_pos):
         self.fragments[(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)] += data[
                                                                                                           data_start_pos:]
-        self.replace_fragment(tcp_packet.Destination_port, destination_address, tcp_packet.Sequence_number)
+        self.replace_fragment(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)
         if has_connection_closed(
                 self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]):
+            print("Connection closed")
+
             if tcp_packet.get_FIN() == True:
                 self.http_parser(
                     self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
@@ -118,7 +122,7 @@ class Sniffer:
 
     def http_parser(self, http_data_bytes):
         try:
-            http_data_string = http_data_bytes.decode("ISO-8859-1")
+            http_data_string = http_data_bytes.decode('unicode_escape', errors='replace')
             if not self.check_if_is_request(http_data_string):
                 return
             self.shared_resources.http_request_messages.append(http_data_string)
@@ -126,7 +130,7 @@ class Sniffer:
             http_request.parse()
             if not self.apply_filters(http_request):
                 return
-            logging.warning("HTTP packet for test: " + http_data_bytes.decode("ISO-8859-1"))
+            logging.warning("HTTP packet for test: " + http_data_bytes.decode('unicode_escape', errors='replace'))
             show(http_request.get_as_list())
         except:
             logging.warning(f"Could not decode HTTP packet: {http_data_bytes}")

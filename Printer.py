@@ -21,6 +21,5 @@ def display_table(data, headers):
 
 
 def show(new_row):
-    new_row[6] = new_row[6].encode("ISO-8859-1").decode("ascii")
     data.append(new_row)
     display_table(data, headers)

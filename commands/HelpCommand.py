@@ -1,7 +1,7 @@
 class HelpCommand:
     @staticmethod
     def execute():
-        """Executes the help command."""
+        """Prints the list of available commands."""
         print("Available commands:")
         print("  help")
         print("  exit")

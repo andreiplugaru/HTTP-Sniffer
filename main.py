@@ -47,8 +47,8 @@ while True:
         continue
     command_parts = command.split(" ")
     command_name = command_parts[0]
-    args = command_parts[1:]
     if command_name in available_commands:
+        args = command_parts[1:] if len(command_parts) > 1 else None
         try:
             call_command(command_name, args)
         except (InvalidCommandArgs, InvalidCommandType) as e:

@@ -4,14 +4,20 @@ from filters.HttpMethodFilter import HttpMethodFilter
 
 
 class AddFilterCommand:
+    """
+    This class represents the command to add a filter.
+    """
     filter_types = {"request_method": HttpMethodFilter, "destination_ip": DestinationIpFilter,
                     "source_ip": DestinationIpFilter}
 
     def __init__(self, shared_resources):
+        """
+        :param shared_resources: instance of SharedResources used to add the filter to the list of filters
+        """
         self.shared_resources = shared_resources
 
     def execute(self, args):
-        """Executes the add filter command. Adds a filter to the list of filters."""
+        """Adds a filter to the list of filters."""
         args = args[0].split("=")
         if len(args) != 2:
             raise InvalidCommandType(list(AddFilterCommand.filter_types.keys()))

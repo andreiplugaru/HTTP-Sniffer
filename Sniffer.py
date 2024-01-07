@@ -8,6 +8,7 @@ from HttpMessage import HttpRequestMessage
 from IPHeader import IPHeader
 from Printer import show
 from TcpPacketHeader import TcpPacketHeader
+from utils import get_ip_as_string
 
 
 class Sniffer:
@@ -16,6 +17,7 @@ class Sniffer:
     TCP_HEADER_LENGTH = 20
 
     def __init__(self):
+        self.current_http_message = None
         if os.name == 'nt':
             try:
                 is_admin = ctypes.windll.shell32.IsUserAnAdmin() == 1
@@ -51,9 +53,7 @@ class Sniffer:
         self.replace_fragment(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)
         if has_connection_closed(
                 self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]):
-            print("Connection closed")
-
-            if tcp_packet.get_FIN() == True:
+            if tcp_packet.get_FIN():
                 self.http_parser(
                     self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
                 del self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]
@@ -105,10 +105,10 @@ class Sniffer:
         return True
     def get_http_body_len(self, message):
         try:
-            data_s = message[40:].decode("ISO-8859-1")
+            data_s = message[40:].decode(errors='replace')
         except:
             return -1
-        data_s = message[40:].decode("ISO-8859-1")
+        data_s = message[40:].decode(errors='replace')
         lines = data_s.split("\r\n\r\n")
         if len(lines) < 2:
             return -1
@@ -122,22 +122,22 @@ class Sniffer:
 
     def http_parser(self, http_data_bytes):
         try:
-            http_data_string = http_data_bytes.decode('unicode_escape', errors='replace')
+            http_data_string = http_data_bytes.decode(errors='replace')
             if not self.check_if_is_request(http_data_string):
                 return
             self.shared_resources.http_request_messages.append(http_data_string)
-            http_request = HttpRequestMessage(http_data_string)
-            http_request.parse()
-            if not self.apply_filters(http_request):
+            self.current_http_message.parse(http_data_string)
+            if not self.apply_filters(self.current_http_message):
                 return
-            logging.warning("HTTP packet for test: " + http_data_bytes.decode('unicode_escape', errors='replace'))
-            show(http_request.get_as_list())
+            show(self.current_http_message.get_as_list())
+            self.current_http_message = None
         except:
             logging.warning(f"Could not decode HTTP packet: {http_data_bytes}")
 
     def sniff(self, shared_resources):
         """
 
+        :param shared_resources:
         :param filters:
         :param event:
         :return:
@@ -150,6 +150,9 @@ class Sniffer:
 
             raw_data = self.conn.recv(Sniffer.MAX_BUFFER_SIZE)
             ip_packet = IPHeader(raw_data[:self.IP_HEADER_LENGTH])
+            self.current_http_message = HttpRequestMessage()
+            self.current_http_message.source_ip = get_ip_as_string(ip_packet.Source_address)
+            self.current_http_message.destination_ip = get_ip_as_string(ip_packet.Destination_address)
             if ip_packet.Protocol == 6:
                 part_of = raw_data[self.IP_HEADER_LENGTH:]
                 self.tcp_parser(part_of, ip_packet.Destination_address)

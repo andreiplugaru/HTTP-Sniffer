@@ -3,7 +3,7 @@ class ListFiltersCommand:
         self.filters = filters
 
     def execute(self):
-        """Executes the list filters command. Prints the list of filters."""
+        """Prints the list of filters. If there are no filters, it prints a special message."""
         for i, filter in enumerate(self.filters):
             print(f"{i + 1}. {filter}")
         if len(self.filters) == 0:

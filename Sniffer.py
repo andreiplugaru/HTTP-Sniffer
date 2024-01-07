@@ -1,14 +1,12 @@
-import ctypes
 import os
 import socket
 import logging
-import sys
 
 from HttpMessage import HttpRequestMessage
 from IPHeader import IPHeader
 from Printer import show
 from TcpPacketHeader import TcpPacketHeader
-from utils import get_ip_as_string
+from utils import get_ip_as_string, get_value_for_raw_message, get_http_body_len, check_if_tcp_is_http
 
 
 class Sniffer:
@@ -20,10 +18,6 @@ class Sniffer:
         self.current_http_message = None
         if os.name == 'nt':
             try:
-                is_admin = ctypes.windll.shell32.IsUserAnAdmin() == 1
-                if not is_admin:
-                    logging.error("You need to run this script as an administrator")
-                    exit(1)
                 host = socket.gethostbyname_ex(socket.gethostname())[-1][-1]
                 self.conn = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
                 self.conn.bind((host, 0))
@@ -40,7 +34,7 @@ class Sniffer:
 
         self.fragments = dict()
 
-    def replace_fragment(self, destination_address, destination_port,  current_sequence_number):
+    def replace_fragment(self, destination_address, destination_port, current_sequence_number):
         if current_sequence_number == self.next_sequence_number:
             return
         self.fragments[(destination_address, destination_port, self.next_sequence_number)] = self.fragments[
@@ -48,32 +42,27 @@ class Sniffer:
         del self.fragments[(destination_address, destination_port, current_sequence_number)]
 
     def handle_existing_request(self, destination_address, tcp_packet, data, data_start_pos):
-        self.fragments[(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)] += data[
-                                                                                                          data_start_pos:]
+        current_fragment_id = (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)
+        self.fragments[current_fragment_id] += data[data_start_pos:]
         self.replace_fragment(destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)
-        if has_connection_closed(
-                self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]):
+        current_fragment_id = (destination_address, tcp_packet.Destination_port, self.next_sequence_number)
+        if has_connection_closed(self.fragments[current_fragment_id]):
             if tcp_packet.get_FIN():
-                self.http_parser(
-                    self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
-                del self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]
-        elif (get_content_length(
-                self.fragments[(destination_address, tcp_packet.Destination_port,
-                                self.next_sequence_number)]) <= self.get_http_body_len(
-            self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
-        ):
-            self.http_parser(
-                self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)])
-            del self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]
+                self.http_parser(self.fragments[current_fragment_id])
+                del self.fragments[current_fragment_id]
+
+        elif (get_content_length(self.fragments[current_fragment_id])
+              <= get_http_body_len(self.fragments[current_fragment_id])):
+            self.http_parser(self.fragments[current_fragment_id])
+            del self.fragments[current_fragment_id]
 
     def handle_new_request(self, destination_address, tcp_packet, data, data_start_pos):
-        self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)] = data[
-                                                                                                        data_start_pos:]
-        if get_content_length(self.fragments[(
-        destination_address, tcp_packet.Destination_port, self.next_sequence_number)]) <= self.get_http_body_len(
-                self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]):
+        current_fragment_id = (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)
+        self.fragments[current_fragment_id] = data[data_start_pos:]
+        if (get_content_length(self.fragments[current_fragment_id]) <=
+                get_http_body_len(self.fragments[current_fragment_id])):
             self.http_parser(data[data_start_pos:])
-            del self.fragments[(destination_address, tcp_packet.Destination_port, self.next_sequence_number)]
+            del self.fragments[current_fragment_id]
 
     def tcp_parser(self, data, destination_address):
         tcp_packet = TcpPacketHeader(data)
@@ -85,7 +74,7 @@ class Sniffer:
         if (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number) in self.fragments:
             self.handle_existing_request(destination_address, tcp_packet, data, data_start_pos)
         else:
-           self.handle_new_request(destination_address, tcp_packet, data, data_start_pos)
+            self.handle_new_request(destination_address, tcp_packet, data, data_start_pos)
 
     def apply_filters(self, data):
         grouped_filters = dict()
@@ -103,27 +92,11 @@ class Sniffer:
             if not flag:
                 return False
         return True
-    def get_http_body_len(self, message):
-        try:
-            data_s = message[40:].decode(errors='replace')
-        except:
-            return -1
-        data_s = message[40:].decode(errors='replace')
-        lines = data_s.split("\r\n\r\n")
-        if len(lines) < 2:
-            return -1
-        return len(lines[1])
-
-    def check_if_is_request(self, data):
-        first_word = data.split(" ")[0]
-        if first_word in ["GET", "POST", "PUT", "DELETE"]:
-            return True
-        return False
 
     def http_parser(self, http_data_bytes):
         try:
             http_data_string = http_data_bytes.decode(errors='replace')
-            if not self.check_if_is_request(http_data_string):
+            if not check_if_tcp_is_http(http_data_string):
                 return
             self.shared_resources.http_request_messages.append(http_data_string)
             self.current_http_message.parse(http_data_string)
@@ -159,24 +132,8 @@ class Sniffer:
 
 
 def get_content_length(data):
-    try:
-        data_s = data.decode("ISO-8859-1")
-    except:
-        return -1
-    data_s = data.decode("ISO-8859-1")
-    content_length = -1
-    for line in data_s.split("\r\n"):
-        if "Content-Length" in line:
-            content_length = int(line.split(":")[1])
-    return content_length
+    return get_value_for_raw_message(data, "Content-Length")
 
 
 def has_connection_closed(data):
-    try:
-        data_s = data.decode("utf-8")
-    except:
-        return False
-
-    if "clos" in data_s.lower():
-        return True
-    return False
+    return get_value_for_raw_message(data, "Connection") == "close"

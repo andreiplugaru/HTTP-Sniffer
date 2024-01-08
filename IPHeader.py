@@ -20,3 +20,6 @@ class IPHeader(ctypes.Structure):
 
     def __new__(cls, buf):
         return cls.from_buffer_copy(buf)
+
+    def __init__(self, data):
+        pass  ## data is already present in class

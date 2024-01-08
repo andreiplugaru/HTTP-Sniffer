@@ -66,4 +66,4 @@ def get_http_body_len(raw_message):
     lines = data_s.split("\r\n\r\n")
     if len(lines) < 2:
         return -1
-    return len(lines[1])
+    return len(lines[1]) + 2

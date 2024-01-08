@@ -15,6 +15,9 @@ class Sniffer:
     TCP_HEADER_LENGTH = 20
 
     def __init__(self):
+        """
+        Constructor for Sniffer class. Opens a socket and binds it to the host's ip address.
+        """
         self.current_http_message = None
         if os.name == 'nt':
             try:
@@ -35,11 +38,29 @@ class Sniffer:
         self.fragments = dict()
 
     def replace_fragment(self, destination_address, destination_port, current_sequence_number):
+        """
+        This method is used to replace a fragment with the next one, using the sequence number.
+        :param destination_address: the destination address of the packet
+        :param destination_port: the destination port of the packet
+        :param current_sequence_number: the current sequence number
+        """
         if current_sequence_number == self.next_sequence_number:
             return
         self.fragments[(destination_address, destination_port, self.next_sequence_number)] = self.fragments[
             (destination_address, destination_port, current_sequence_number)]
         del self.fragments[(destination_address, destination_port, current_sequence_number)]
+
+    def tcp_parser(self, data, destination_address):
+        tcp_packet = TcpPacketHeader(data)
+        data_start_pos = self.TCP_HEADER_LENGTH
+        if tcp_packet.Source_port != 80 and tcp_packet.Destination_port != 80:
+            return
+
+        self.next_sequence_number = tcp_packet.Sequence_number + len(data[data_start_pos:])
+        if (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number) in self.fragments:
+            self.handle_existing_request(destination_address, tcp_packet, data, data_start_pos)
+        else:
+            self.handle_new_request(destination_address, tcp_packet, data, data_start_pos)
 
     def handle_existing_request(self, destination_address, tcp_packet, data, data_start_pos):
         current_fragment_id = (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)
@@ -59,26 +80,13 @@ class Sniffer:
     def handle_new_request(self, destination_address, tcp_packet, data, data_start_pos):
         current_fragment_id = (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number)
         self.fragments[current_fragment_id] = data[data_start_pos:]
-        if (get_content_length(self.fragments[current_fragment_id]) <=
-                get_http_body_len(self.fragments[current_fragment_id])):
+        if get_content_length(self.fragments[current_fragment_id]) <= get_http_body_len(self.fragments[current_fragment_id]):
             self.http_parser(data[data_start_pos:])
             del self.fragments[current_fragment_id]
 
-    def tcp_parser(self, data, destination_address):
-        tcp_packet = TcpPacketHeader(data)
-        data_start_pos = self.TCP_HEADER_LENGTH
-        if tcp_packet.Source_port != 80 and tcp_packet.Destination_port != 80:
-            return
-
-        self.next_sequence_number = tcp_packet.Sequence_number + len(data[data_start_pos:])
-        if (destination_address, tcp_packet.Destination_port, tcp_packet.Sequence_number) in self.fragments:
-            self.handle_existing_request(destination_address, tcp_packet, data, data_start_pos)
-        else:
-            self.handle_new_request(destination_address, tcp_packet, data, data_start_pos)
-
     def apply_filters(self, data):
         grouped_filters = dict()
-        for thing in self.filters:
+        for thing in self.shared_resources.filters:
             if type(thing) in grouped_filters:
                 grouped_filters[type(thing)].append(thing)
             else:
@@ -109,15 +117,14 @@ class Sniffer:
 
     def sniff(self, shared_resources):
         """
-
-        :param shared_resources:
-        :param filters:
-        :param event:
-        :return:
+        Method for sniffing packets. Firstly, it checks if the stop event or the pause event are set. If one of them
+        is, it doesn't parse the packets. Otherwise, it creates and instance of :class:`IPHeader` for parsing the
+        first 20 bytes of the packet. After this, it parses the next 20 bytes of the packet, which are the TCP
+        header.
+         :param shared_resources: an instance of :class:`SharedResources` which contains the filters and the stop event.
         """
         self.shared_resources = shared_resources
         while self.shared_resources.stop_event is None or not self.shared_resources.stop_event.is_set():
-            self.filters = shared_resources.filters
             if self.shared_resources.pause_event is not None and self.shared_resources.pause_event.is_set():
                 continue
 
@@ -132,8 +139,20 @@ class Sniffer:
 
 
 def get_content_length(data):
-    return get_value_for_raw_message(data, "Content-Length")
+    length_str = get_value_for_raw_message(data, "Content-Length")
+    if length_str == "":
+        return 0
+    return int(length_str)
 
 
 def has_connection_closed(data):
-    return get_value_for_raw_message(data, "Connection") == "close"
+    # print(get_value_for_raw_message(data, "Connection"))
+    return get_value_for_raw_message(data, "Connection") == "Closed"
+    # try:
+    #     data_s = data.decode("utf-8")
+    # except:
+    #     return False
+    #
+    # if "clos" in data_s.lower():
+    #     return True
+    # return False

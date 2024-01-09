@@ -10,6 +10,7 @@ from commands.ShowDetailsCommand import ShowDetailsCommand
 from commands.StartSniffingCommand import StartSniffingCommand
 from commands.StopSniffingCommand import StopSniffingCommand
 from exceptions.InvalidCommandArgs import InvalidCommandArgs
+from exceptions.InvalidCommandRunPeriod import InvalidCommandRunPeriod
 from exceptions.InvalidCommandType import InvalidCommandType
 from utils import check_if_admin
 
@@ -46,7 +47,7 @@ def main():
             args = command_parts[1:] if len(command_parts) > 1 else None
             try:
                 call_command(command_name, args)
-            except (InvalidCommandArgs, InvalidCommandType) as e:
+            except (InvalidCommandArgs, InvalidCommandType, InvalidCommandRunPeriod) as e:
                 print(e)
             except Exception as e:
                 logging.error(e)

@@ -8,6 +8,8 @@ class SharedResources:
         self.stop_event = Event()
         self.pause_event = Event()
         self.http_request_messages = list()
+        self.stop_event.set()
+        self.pause_event.set()
 
     def set_thread(self, sniffer_thread):
         self.sniffer_thread = sniffer_thread

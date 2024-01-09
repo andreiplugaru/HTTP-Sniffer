@@ -1,6 +1,7 @@
 import threading
 
 import Sniffer
+from exceptions.InvalidCommandRunPeriod import InvalidCommandRunPeriod
 
 
 class SniffingThread(threading.Thread):
@@ -36,5 +37,7 @@ class StartSniffingCommand:
 
     def execute(self):
         """Start the sniffing thread."""
+        if not self.shared_resources.stop_event.is_set():
+            raise InvalidCommandRunPeriod("sniffing is not already started")
         self.shared_resources.set_thread(SniffingThread(self.shared_resources))
         self.shared_resources.get_thread().start()

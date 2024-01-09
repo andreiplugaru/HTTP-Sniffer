@@ -1,4 +1,7 @@
 class HttpRequestMessage:
+    """
+    Class for representing a http request message. It contains all the information about the message.
+    """
     def __init__(self):
         self.source_ip = None
         self.destination_ip = None
@@ -31,7 +34,7 @@ class HttpRequestMessage:
         The body of a http request message is the part after the first empty line.
         :return: the body of the http request message.
         """
-        return self.raw_message[self.raw_message.find("\r\n\r\n") + 1:]
+        return self.raw_message[self.raw_message.find("\r\n\r\n") + 4:]
 
     def get_value_for_key(self, key):
         """

@@ -1,4 +1,5 @@
 import logging
+
 from SharedResources import SharedResources
 from commands.AddFilterCommand import AddFilterCommand
 from commands.HelpCommand import HelpCommand

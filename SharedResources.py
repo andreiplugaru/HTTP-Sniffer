@@ -14,12 +14,3 @@ class SharedResources:
 
     def get_thread(self):
         return self.sniffer_thread
-
-    def set_filters(self, filters):
-        self.filters = filters
-
-    def get_filters(self):
-        return self.filters
-
-    def set_event(self, event):
-        self.event = event

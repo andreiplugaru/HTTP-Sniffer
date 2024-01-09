@@ -2,6 +2,7 @@ import logging
 
 from SharedResources import SharedResources
 from commands.AddFilterCommand import AddFilterCommand
+from commands.ExitCommand import ExitCommand
 from commands.HelpCommand import HelpCommand
 from commands.ListFiltersCommand import ListFiltersCommand
 from commands.PauseSniffingCommand import PauseSniffingCommand
@@ -29,6 +30,7 @@ available_commands = {
     "resume_sniffing": ResumeSniffingCommand(shared_resources),
     "show_details": ShowDetailsCommand(shared_resources),
     "remove_filter": RemoveFilterCommand(shared_resources),
+    "exit": ExitCommand(shared_resources)
 }
 
 

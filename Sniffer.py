@@ -141,10 +141,10 @@ class Sniffer:
             http_data_string = decode_utf8_char_by_char(http_data_bytes)
             if not check_if_tcp_is_http(http_data_string):
                 return
-            self.shared_resources.http_request_messages.append(http_data_string)
             self.current_http_message.parse(http_data_string)
             if not self.apply_filters(self.current_http_message):
                 return
+            self.shared_resources.http_request_messages.append(http_data_string)
             show(self.current_http_message.get_as_list())
             self.current_http_message = None
         except ValueError:

@@ -18,6 +18,9 @@ class AddFilterCommand:
 
     def execute(self, args):
         """Adds a filter to the list of filters."""
+        if args is None:
+            raise InvalidCommandType(list(AddFilterCommand.filter_types.keys()))
+            
         args = args[0].split("=")
         if len(args) != 2:
             raise InvalidCommandType(list(AddFilterCommand.filter_types.keys()))

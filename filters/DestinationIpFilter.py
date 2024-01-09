@@ -15,4 +15,4 @@ class DestinationIpFilter:
         return http_message.destination_ip == self.destination_ip
 
     def __str__(self):
-        return "Filter for source ip = " + self.destination_ip
+        return "Filter for destination ip = " + self.destination_ip

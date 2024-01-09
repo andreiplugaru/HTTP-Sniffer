@@ -5,6 +5,7 @@ from commands.AddFilterCommand import AddFilterCommand
 from commands.HelpCommand import HelpCommand
 from commands.ListFiltersCommand import ListFiltersCommand
 from commands.PauseSniffingCommand import PauseSniffingCommand
+from commands.RemoveFilterCommand import RemoveFilterCommand
 from commands.ResumeSniffingCommand import ResumeSniffingCommand
 from commands.ShowDetailsCommand import ShowDetailsCommand
 from commands.StartSniffingCommand import StartSniffingCommand
@@ -16,6 +17,8 @@ from utils import check_if_admin
 
 check_if_admin()
 shared_resources = SharedResources()
+
+
 available_commands = {
     "help": HelpCommand(),
     "add_filter": AddFilterCommand(shared_resources),
@@ -25,6 +28,7 @@ available_commands = {
     "pause_sniffing": PauseSniffingCommand(shared_resources),
     "resume_sniffing": ResumeSniffingCommand(shared_resources),
     "show_details": ShowDetailsCommand(shared_resources),
+    "remove_filter": RemoveFilterCommand(shared_resources),
 }
 
 

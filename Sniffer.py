@@ -6,8 +6,8 @@ from HttpMessage import HttpRequestMessage
 from IPHeader import IPHeader
 from Printer import show
 from TcpPacketHeader import TcpPacketHeader
-from utils import get_ip_as_string, get_value_for_raw_message, get_http_body_len, check_if_tcp_is_http, \
-    decode_utf8_char_by_char
+from utils import get_ip_as_string, get_value_for_raw_message, get_http_body_len, decode_utf8_char_by_char, \
+    check_if_tcp_is_request
 
 
 class Sniffer:
@@ -20,25 +20,23 @@ class Sniffer:
 
     def __init__(self):
         """
-        Constructor for Sniffer class. Opens a socket and binds it to the host's ip address.
+        Constructor for Sniffer class. Opens a socket and binds it to the host's ip address .
         """
         self.current_http_message = None
         self.shared_resources = None
-        if os.name == 'nt':
-            try:
-                host = socket.gethostbyname_ex(socket.gethostname())[-1][-1]
-                self.conn = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
-                self.conn.bind((host, 0))
-                self.conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self.conn.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                self.conn.ioctl(socket.SIO_RCVALL, 1)
-            except OSError as e:
-                logging.error("Error when opening socket: " + e)
-                exit(1)
-        # implement for linux
-        else:
-            pass
-        # key is tuple of (dest_ip, dest_port)
+        try:
+            host = socket.gethostbyname_ex(socket.gethostname())[-1][-1]
+            self.conn = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
+            self.conn.bind((host, 0))
+            # reuse ip address
+            self.conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # include ip headers
+            self.conn.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+            # receive all packages
+            self.conn.ioctl(socket.SIO_RCVALL, 1)
+        except OSError as e:
+            logging.error("Error when opening socket: " + e)
+            exit(1)
 
         self.fragments = dict()
 
@@ -139,7 +137,7 @@ class Sniffer:
         """
         try:
             http_data_string = decode_utf8_char_by_char(http_data_bytes)
-            if not check_if_tcp_is_http(http_data_string):
+            if not check_if_tcp_is_request(http_data_string):
                 return
             self.current_http_message.parse(http_data_string)
             if not self.apply_filters(self.current_http_message):

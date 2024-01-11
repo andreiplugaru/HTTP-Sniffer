@@ -7,10 +7,7 @@ from utils import sanitize_string
 
 
 def clear_console():
-    if os.name == 'nt':  # For Windows
-        os.system('cls')
-    else:  # For Unix-like systems
-        os.system('clear')
+    os.system('cls')
 
 
 headers = ["Method", "Host", "Source IP address", "Destination IP address", "Http version", "Content type",

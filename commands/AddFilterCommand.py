@@ -20,7 +20,7 @@ class AddFilterCommand:
         """Adds a filter to the list of filters."""
         if args is None:
             raise InvalidCommandType(list(AddFilterCommand.filter_types.keys()))
-            
+
         args = args[0].split("=")
         if len(args) != 2:
             raise InvalidCommandType(list(AddFilterCommand.filter_types.keys()))
@@ -28,3 +28,4 @@ class AddFilterCommand:
         if filter_type not in self.filter_types:
             raise InvalidCommandType(list(AddFilterCommand.filter_types.keys()))
         self.shared_resources.filters.append(self.filter_types[filter_type](args[1]))
+        print("Filter added!")

@@ -63,7 +63,7 @@ def get_value_for_raw_message(raw_message, key):
     return ""
 
 
-def check_if_tcp_is_http(data):
+def check_if_tcp_is_request(data):
     """
     Checks if the tcp packet is a http request message. It checks if the first word of the message is a valid http
     method.
@@ -96,9 +96,6 @@ def decode_utf8_char_by_char(input_bytes):
 
 def sanitize_string(input_string):
     string_clean = re.sub(r"[^\x00-\x7F]+", "?", input_string)  # Remove non-ASCII characters
-    # string_clean = re.sub(r"\x00", "?", string_clean)  # Remove null characters
     string_clean = ''.join([c if c.isprintable() else '' for c in string_clean])
 
     return string_clean
-    return re.sub(r"[^\x00-\x7F]+", "?", input_string)
-    # return input_string

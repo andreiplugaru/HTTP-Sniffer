@@ -15,5 +15,5 @@ class RemoveFilterCommand:
 
         if index >= len(self.shared_resources.filters):
             raise InvalidCommandArgs("show_details", "integers less than the number of filters")
-        print(f"Filter at position {index} removed!")
+        print(f"Filter at position {index + 1} removed!")
         del self.shared_resources.filters[index]

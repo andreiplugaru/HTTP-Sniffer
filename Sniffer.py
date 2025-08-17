@@ -58,7 +58,6 @@ class Sniffer:
         This method parses the TCP header of a packet. If the ports are different from 80, it returns.
         :param data: the raw data of the packet
         :param destination_address: the destination address of the packet
-        :return:
         """
         tcp_packet = TcpPacketHeader(data)
         data_start_pos = self.TCP_HEADER_LENGTH
